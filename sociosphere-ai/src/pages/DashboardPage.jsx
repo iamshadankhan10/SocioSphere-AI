@@ -1,0 +1,115 @@
+import { dashboardStats, recentActivities, monthlyCollectionData, complaintCategoryData } from '../data/dummyData.js';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { TrendingUp, TrendingDown, Users, UserCheck, MessageSquareWarning, IndianRupee, Home, Wrench, CreditCard, CalendarDays, Bell } from 'lucide-react';
+
+const iconMap = { Users, UserCheck, MessageSquareWarning, IndianRupee };
+const activityIconMap = {
+  resident: { icon: Users, color: '#4f46e5', bg: '#eef2ff' },
+  visitor: { icon: UserCheck, color: '#06b6d4', bg: '#cffafe' },
+  complaint: { icon: MessageSquareWarning, color: '#f59e0b', bg: '#fef3c7' },
+  payment: { icon: IndianRupee, color: '#10b981', bg: '#d1fae5' },
+  event: { icon: CalendarDays, color: '#a855f7', bg: '#f3e8ff' },
+  notice: { icon: Bell, color: '#ef4444', bg: '#fee2e2' },
+};
+
+const CHART_COLORS = ['#4f46e5', '#06b6d4', '#a855f7', '#f59e0b', '#ef4444'];
+
+export default function DashboardPage() {
+  return (
+    <div className="space-y">
+      {/* Header */}
+      <div className="page-header">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Welcome back, Shadan! Here's what's happening in your society.</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        {dashboardStats.map(stat => {
+          const Icon = iconMap[stat.icon];
+          const isUp = stat.trend === 'up';
+          return (
+            <div key={stat.id} className="stat-card">
+              <div className="stat-icon" style={{ background: isUp ? '#eef2ff' : '#fee2e2' }}>
+                {Icon && <Icon size={22} color={isUp ? '#4f46e5' : '#ef4444'} />}
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">{stat.label}</div>
+                <div className="stat-value">{stat.value}</div>
+                <div className={`stat-change ${isUp ? 'up' : 'down'}`}>
+                  {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                  {stat.change} from last month
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* Bar Chart */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title">Monthly Collection</div>
+              <div className="card-subtitle">Last 6 months (in ₹)</div>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={monthlyCollectionData} barSize={32}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+              <Tooltip formatter={v => [`₹${v.toLocaleString()}`, 'Collection']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }} />
+              <Bar dataKey="amount" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pie Chart */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title">Complaint Categories</div>
+              <div className="card-subtitle">Distribution by type</div>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={complaintCategoryData} dataKey="count" nameKey="category" cx="50%" cy="50%" outerRadius={80} innerRadius={45}>
+                {complaintCategoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }} />
+              <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Recent Activities */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">Recent Activities</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {recentActivities.map(activity => {
+            const meta = activityIconMap[activity.type];
+            const Icon = meta.icon;
+            return (
+              <div key={activity.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={16} color={meta.color} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, color: 'var(--fg)' }}>{activity.description}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>{activity.time}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
