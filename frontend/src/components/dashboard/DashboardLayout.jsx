@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../App.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import {
   LayoutDashboard, Users, UserCheck, MessageSquareWarning, Wrench,
   CreditCard, Megaphone, CalendarDays, Settings, Building2,
@@ -14,7 +15,15 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'AD';
 
   return (
     <div className="layout-dashboard">
@@ -85,15 +94,15 @@ export default function DashboardLayout() {
             {/* User Dropdown */}
             <div className="dropdown">
               <button className="navbar-user" onClick={() => setDropdownOpen(p => !p)}>
-                <div className="avatar avatar-sm">SK</div>
-                <span className="navbar-user-name">Shadan Khan</span>
+                <div className="avatar avatar-sm">{initials}</div>
+                <span className="navbar-user-name">{user?.name || 'Admin'}</span>
                 <ChevronDown size={14} />
               </button>
               {dropdownOpen && (
                 <div className="dropdown-menu" style={{ minWidth: 200 }}>
                   <div className="dropdown-label">
-                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--fg)' }}>Shadan Khan</div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>admin@sociosphere.ai</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--fg)' }}>{user?.name || 'Admin'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>{user?.email || ''}</div>
                   </div>
                   <div className="dropdown-separator" />
                   <button className="dropdown-item" onClick={() => { setDropdownOpen(false); navigate('/dashboard/settings'); }}>
@@ -103,7 +112,7 @@ export default function DashboardLayout() {
                     <Settings size={15} /> Settings
                   </button>
                   <div className="dropdown-separator" />
-                  <button className="dropdown-item danger" onClick={() => { setDropdownOpen(false); navigate('/'); }}>
+                  <button className="dropdown-item danger" onClick={() => { setDropdownOpen(false); handleLogout(); }}>
                     <LogOut size={15} /> Log out
                   </button>
                 </div>
