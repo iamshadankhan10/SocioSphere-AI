@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, createContext, useContext } from 'react';
-
-// Auth
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 
 // Pages
@@ -22,11 +20,7 @@ import EventsPage from './pages/EventsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import ResidentPortal from './pages/ResidentPortal.jsx';
 
-// Theme Context
-export const ThemeContext = createContext(null);
-export function useTheme() { return useContext(ThemeContext); }
-
-// ---- Route guards ----
+// ---- Route guard ----
 function RequireAuth({ children, role }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -36,39 +30,23 @@ function RequireAuth({ children, role }) {
 }
 
 export default function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem('theme', next);
-      return next;
-    });
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* Public routes */}
+            {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-            {/* Resident portal — requires resident login */}
+            {/* Resident portal */}
             <Route path="/resident" element={
               <RequireAuth role="resident"><ResidentPortal /></RequireAuth>
             } />
 
-            {/* Admin dashboard — requires admin login */}
+            {/* Admin dashboard */}
             <Route path="/dashboard" element={
               <RequireAuth role="admin"><DashboardLayout /></RequireAuth>
             }>
@@ -88,6 +66,6 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
-    </ThemeContext.Provider>
+    </ThemeProvider>
   );
 }

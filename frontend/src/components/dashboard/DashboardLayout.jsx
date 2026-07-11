@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useTheme } from '../../App.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import {
   LayoutDashboard, Users, UserCheck, MessageSquareWarning, Wrench,

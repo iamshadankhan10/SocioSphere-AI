@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { initialNotices, noticeCategoryOptions } from '../data/noticeBoardData.js';
 import { Plus, Pin, PinOff, Trash2, Search, X, Megaphone } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 // ---- Category badge ----
 const categoryColors = {
@@ -109,6 +110,8 @@ export default function NoticeBoardPage() {
   const handleAdd    = (n) => setNotices(p => [n, ...p]);
   const handlePin    = (id) => setNotices(p => p.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n));
   const handleDelete = (id) => setNotices(p => p.filter(n => n.id !== id));
+  const [confirmId, setConfirmId] = useState(null);
+  const confirmNotice = notices.find(n => n.id === confirmId);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -156,12 +159,19 @@ export default function NoticeBoardPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {filtered.map(n => (
-            <NoticeCard key={n.id} notice={n} onPin={handlePin} onDelete={handleDelete} />
+            <NoticeCard key={n.id} notice={n} onPin={handlePin} onDelete={(id) => setConfirmId(id)} />
           ))}
         </div>
       )}
 
       <AddNoticeModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} />
+      <ConfirmModal
+        open={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        onConfirm={() => handleDelete(confirmId)}
+        title="Delete Notice"
+        description={confirmNotice?.title ? `Delete notice: "${confirmNotice.title}"? This action cannot be undone.` : undefined}
+      />
     </div>
   );
 }

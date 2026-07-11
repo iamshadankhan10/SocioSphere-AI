@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useTheme } from '../App.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import { features, pricingPlans } from '../data/dummyData.js';
 import { Building2, Menu, X, Sun, Moon, ArrowRight, Play, Check,
   Users, UserCheck, MessageSquareWarning, Wrench, CreditCard, Megaphone, Mail, Phone, MapPin } from 'lucide-react';

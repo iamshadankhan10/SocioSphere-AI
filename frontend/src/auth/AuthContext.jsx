@@ -12,23 +12,15 @@ const ADMIN = {
 // --- helpers ---
 const STORAGE_KEY = 'sociosphere_users';
 const SESSION_KEY = 'sociosphere_session';
+const API_URL = 'http://localhost:5002/api/auth';
 
-function getStoredUsers() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch { return []; }
-}
-function saveUsers(users) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-}
 function getSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null; }
   catch { return null; }
 }
 function saveSession(user) {
-  // Don't store password in session
-  const { password: _, ...safe } = user;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(safe));
-  return safe;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  return user;
 }
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
@@ -41,45 +33,48 @@ export function useAuth() { return useContext(AuthContext); }
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getSession());
 
-  // Returns null on success, error string on failure
-  const login = (email, password) => {
-    // Check admin
-    if (email === ADMIN.email && password === ADMIN.password) {
-      const session = saveSession(ADMIN);
+  // Returns { error, role }
+  const login = async (email, password) => {
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        return { error: data.message || 'Invalid email or password.', role: null };
+      }
+      
+      const session = saveSession(data);
       setUser(session);
-      return null;
+      return { error: null, role: data.role };
+    } catch (error) {
+      return { error: 'Server error. Please try again later.', role: null };
     }
-    // Check resident accounts in localStorage
-    const users = getStoredUsers();
-    const found = users.find(u => u.email === email && u.password === password);
-    if (found) {
-      const session = saveSession(found);
-      setUser(session);
-      return null;
-    }
-    return 'Invalid email or password. Please try again.';
   };
 
-  // Returns null on success, error string on failure
-  const signup = ({ name, email, phone, password }) => {
-    const users = getStoredUsers();
-    if (email === ADMIN.email || users.find(u => u.email === email)) {
-      return 'An account with this email already exists.';
+  // Returns { error }
+  const signup = async ({ name, email, phone, password }) => {
+    try {
+      const res = await fetch(`${API_URL}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        return { error: data.message || 'Signup failed.' };
+      }
+      
+      const session = saveSession(data);
+      setUser(session);
+      return { error: null };
+    } catch (error) {
+      return { error: 'Server error. Please try again later.' };
     }
-    const newUser = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      phone,
-      password,
-      role: 'resident',
-      flatNumber: '',
-      tower: '',
-    };
-    saveUsers([...users, newUser]);
-    const session = saveSession(newUser);
-    setUser(session);
-    return null;
   };
 
   const logout = () => {

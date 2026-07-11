@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { initialComplaints, staffOptions, categoryOptions } from '../data/complaintsData.js';
 import { Plus, Search, X, MessageSquareWarning, Eye, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 function PriorityBadge({ p }) {
   const map = { High: 'badge-danger', Medium: 'badge-warning', Low: 'badge-success' };
@@ -140,21 +141,7 @@ function ComplaintFormDialog({ open, onClose, onSave }) {
 }
 
 // ---- Delete Dialog ----
-function DeleteDialog({ open, onClose, onConfirm, title }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><span className="modal-title">Delete Complaint</span><button className="btn btn-ghost btn-icon-sm" onClick={onClose}><X size={16} /></button></div>
-        <div className="modal-body"><p style={{ fontSize: 14, color: 'var(--fg-muted)' }}>Delete ticket: <strong style={{ color: 'var(--fg)' }}>{title}</strong>?</p></div>
-        <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-          <button className="btn btn-danger" onClick={() => { onConfirm(); onClose(); }}>Delete</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState(initialComplaints);
@@ -279,7 +266,13 @@ export default function ComplaintsPage() {
 
       <ComplaintFormDialog open={formOpen} onClose={() => setFormOpen(false)} onSave={handleSave} />
       <DetailsSheet open={detailsOpen} onClose={() => { setDetailsOpen(false); setSelected(null); }} complaint={selected} onStatusChange={handleStatusChange} onAssignChange={handleAssignChange} />
-      <DeleteDialog open={deleteOpen} onClose={() => { setDeleteOpen(false); setSelected(null); }} onConfirm={() => setComplaints(prev => prev.filter(c => c.id !== selected?.id))} title={selected?.title} />
+      <ConfirmModal
+        open={deleteOpen}
+        onClose={() => { setDeleteOpen(false); setSelected(null); }}
+        onConfirm={() => setComplaints(prev => prev.filter(c => c.id !== selected?.id))}
+        title="Delete Complaint"
+        description={selected?.title ? `Delete complaint: "${selected.title}"? This action cannot be undone.` : undefined}
+      />
     </div>
   );
 }

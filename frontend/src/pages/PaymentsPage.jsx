@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { initialPayments, paymentTypeOptions } from '../data/paymentsData.js';
 import { Plus, Search, X, IndianRupee, Eye, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 // ---- Badges ----
 function StatusBadge({ s }) {
@@ -191,6 +192,7 @@ export default function PaymentsPage() {
     ));
   };
   const handleDelete = (id) => setPayments(prev => prev.filter(p => p.id !== id));
+  const [confirmId, setConfirmId] = useState(null);
 
   return (
     <div className="space-y">
@@ -284,7 +286,7 @@ export default function PaymentsPage() {
                         <CheckCircle size={15} />
                       </button>
                     )}
-                    <button className="btn btn-ghost btn-icon-sm" title="Delete" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(p.id)}>
+                    <button className="btn btn-ghost btn-icon-sm" title="Delete" style={{ color: 'var(--danger)' }} onClick={() => setConfirmId(p.id)}>
                       <X size={15} />
                     </button>
                   </div>
@@ -298,6 +300,13 @@ export default function PaymentsPage() {
       {/* Modals */}
       <AddPaymentModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} />
       <DetailSheet open={!!sheet} onClose={() => setSheet(null)} payment={sheet} onMarkPaid={handleMarkPaid} />
+      <ConfirmModal
+        open={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        onConfirm={() => handleDelete(confirmId)}
+        title="Delete Payment"
+        description="Are you sure you want to delete this payment record? This action cannot be undone."
+      />
     </div>
   );
 }

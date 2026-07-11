@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { initialEvents, eventStatusOptions } from '../data/eventsData.js';
 import { Plus, Search, X, CalendarDays, MapPin, Clock, Users, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 // ---- Status Badge ----
 function StatusBadge({ s }) {
@@ -87,6 +88,8 @@ export default function EventsPage() {
 
   const handleAdd = (evt) => setEvents(p => [evt, ...p]);
   const handleDelete = (id) => setEvents(p => p.filter(e => e.id !== id));
+  const [confirmId, setConfirmId] = useState(null);
+  const confirmEvent = events.find(e => e.id === confirmId);
   const handleRsvp = (id) => {
     setEvents(p => p.map(e => e.id === id ? { ...e, rsvps: e.rsvps + 1 } : e));
   };
@@ -170,7 +173,7 @@ export default function EventsPage() {
                       RSVP (+1)
                     </button>
                   )}
-                  <button className="btn btn-ghost btn-icon-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(evt.id)}>
+                  <button className="btn btn-ghost btn-icon-sm" style={{ color: 'var(--danger)' }} onClick={() => setConfirmId(evt.id)}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -181,6 +184,13 @@ export default function EventsPage() {
       )}
 
       <AddEventModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} />
+      <ConfirmModal
+        open={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        onConfirm={() => handleDelete(confirmId)}
+        title="Delete Event"
+        description={confirmEvent?.title ? `Delete event: "${confirmEvent.title}"? This action cannot be undone.` : undefined}
+      />
     </div>
   );
 }

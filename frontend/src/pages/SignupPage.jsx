@@ -11,11 +11,11 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const set = (k, v) => { setError(''); setForm(f => ({ ...f, [k]: v })); };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    const err = signup(form);
-    if (err) { setError(err); return; }
+    const { error: signupError } = await signup(form);
+    if (signupError) { setError(signupError); return; }
     navigate('/resident');
   };
 

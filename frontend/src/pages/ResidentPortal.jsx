@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { useTheme } from '../App.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import {
   Building2, Bell, LogOut, Sun, Moon, ChevronDown,
   Home, IndianRupee, Megaphone, MessageSquareWarning,

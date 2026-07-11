@@ -15,14 +15,13 @@ export default function LoginPage() {
     setForm(f => ({ ...f, [k]: v }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const err = login(form.email, form.password);
-    if (err) {
-      setError(err);
+    const { error: loginError, role } = await login(form.email, form.password);
+    if (loginError) {
+      setError(loginError);
     } else {
-      // Admin goes to dashboard, residents go to their portal
-      if (form.email === 'admin@sociosphere.ai') {
+      if (role === 'admin') {
         navigate('/dashboard');
       } else {
         navigate('/resident');

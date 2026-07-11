@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { initialResidents, towerOptions, getInitials } from '../data/residentsData.js';
 import { Plus, Search, Eye, Edit, Trash2, Users, Home, UserCheck, TrendingUp, X, ChevronDown } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 // ---- Stats ----
 function ResidentStats({ residents }) {
@@ -124,28 +125,7 @@ function ResidentFormDialog({ open, onClose, onSave, resident }) {
 }
 
 // ---- Delete Dialog ----
-function DeleteDialog({ open, onClose, onConfirm, name }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <span className="modal-title">Delete Resident</span>
-          <button className="btn btn-ghost btn-icon-sm" onClick={onClose}><X size={16} /></button>
-        </div>
-        <div className="modal-body">
-          <p style={{ fontSize: 14, color: 'var(--fg-muted)' }}>
-            Are you sure you want to remove <strong style={{ color: 'var(--fg)' }}>{name}</strong>? This action cannot be undone.
-          </p>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-          <button className="btn btn-danger" onClick={() => { onConfirm(); onClose(); }}>Delete</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 // ---- Badge helpers ----
 function TypeBadge({ type }) {
@@ -283,7 +263,13 @@ export default function ResidentsPage() {
       </div>
 
       <ResidentFormDialog open={formOpen} onClose={() => { setFormOpen(false); setSelected(null); }} onSave={handleSave} resident={selected} />
-      <DeleteDialog open={deleteOpen} onClose={() => { setDeleteOpen(false); setSelected(null); }} onConfirm={() => setResidents(prev => prev.filter(r => r.id !== selected?.id))} name={selected?.fullName} />
+      <ConfirmModal
+        open={deleteOpen}
+        onClose={() => { setDeleteOpen(false); setSelected(null); }}
+        onConfirm={() => setResidents(prev => prev.filter(r => r.id !== selected?.id))}
+        title="Delete Resident"
+        description={selected?.fullName ? `Are you sure you want to remove ${selected.fullName}? This action cannot be undone.` : undefined}
+      />
     </div>
   );
 }

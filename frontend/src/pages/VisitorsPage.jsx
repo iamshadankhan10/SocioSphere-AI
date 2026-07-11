@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { initialVisitors, generatePassCode } from '../data/visitorsData.js';
 import { Plus, Search, X, UserCheck, LogOut, Eye, Trash2, Shield } from 'lucide-react';
+import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
 function StatusBadge({ status }) {
   const map = { Inside: 'badge-success', 'Checked Out': 'badge-muted', 'Pre-Authorized': 'badge-info' };
@@ -124,21 +125,7 @@ function VisitorFormDialog({ open, onClose, onSave }) {
 }
 
 // ---- Delete Dialog ----
-function DeleteDialog({ open, onClose, onConfirm, name }) {
-  if (!open) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><span className="modal-title">Remove Visitor</span><button className="btn btn-ghost btn-icon-sm" onClick={onClose}><X size={16} /></button></div>
-        <div className="modal-body"><p style={{ fontSize: 14, color: 'var(--fg-muted)' }}>Remove visitor record for <strong style={{ color: 'var(--fg)' }}>{name}</strong>?</p></div>
-        <div className="modal-footer">
-          <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-          <button className="btn btn-danger" onClick={() => { onConfirm(); onClose(); }}>Remove</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export default function VisitorsPage() {
   const [visitors, setVisitors] = useState(initialVisitors);
@@ -263,7 +250,13 @@ export default function VisitorsPage() {
 
       <VisitorFormDialog open={formOpen} onClose={() => setFormOpen(false)} onSave={handleSave} />
       <PassDialog open={passOpen} onClose={() => { setPassOpen(false); setSelected(null); }} visitor={selected} />
-      <DeleteDialog open={deleteOpen} onClose={() => { setDeleteOpen(false); setSelected(null); }} onConfirm={() => setVisitors(prev => prev.filter(v => v.id !== selected?.id))} name={selected?.fullName} />
+      <ConfirmModal
+        open={deleteOpen}
+        onClose={() => { setDeleteOpen(false); setSelected(null); }}
+        onConfirm={() => setVisitors(prev => prev.filter(v => v.id !== selected?.id))}
+        title="Remove Visitor"
+        description={selected?.fullName ? `Remove visitor record for ${selected.fullName}? This action cannot be undone.` : undefined}
+      />
     </div>
   );
 }
