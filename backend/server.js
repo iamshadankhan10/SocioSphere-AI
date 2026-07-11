@@ -3,6 +3,11 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
+import noticeRoutes from './routes/notices.js';
+import eventRoutes from './routes/events.js';
+import paymentRoutes from './routes/payments.js';
+import complaintRoutes from './routes/complaints.js';
+import visitorRoutes from './routes/visitors.js';
 import User from './models/User.js';
 
 // Load env vars
@@ -19,6 +24,11 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/notices', noticeRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/visitors', visitorRoutes);
 
 // Base route
 app.get('/', (req, res) => {

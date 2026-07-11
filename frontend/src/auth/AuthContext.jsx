@@ -12,7 +12,9 @@ const ADMIN = {
 // --- helpers ---
 const STORAGE_KEY = 'sociosphere_users';
 const SESSION_KEY = 'sociosphere_session';
-const API_URL = 'http://localhost:5002/api/auth';
+const API_URL = import.meta.env.MODE === 'production'
+  ? 'https://sociosphere-ai.onrender.com/api/auth'
+  : 'http://localhost:5002/api/auth';
 
 function getSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null; }
