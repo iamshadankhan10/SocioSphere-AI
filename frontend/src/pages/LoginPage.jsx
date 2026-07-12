@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
+import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (k, v) => {
     setError('');
     setForm(f => ({ ...f, [k]: v }));
@@ -17,20 +20,26 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error: loginError, role } = await login(form.email, form.password);
-    if (loginError) {
-      setError(loginError);
-    } else {
-      if (role === 'admin') {
-        navigate('/dashboard');
+    setLoading(true);
+    try {
+      const { error: loginError, role } = await login(form.email, form.password);
+      if (loginError) {
+        setError(loginError);
       } else {
-        navigate('/resident');
+        if (role === 'admin') {
+          navigate('/dashboard');
+        } else {
+          navigate('/resident');
+        }
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="auth-page">
+      {loading && <LoadingSpinner fullPage={true} message="Signing you in..." />}
       <div className="auth-glow" />
       <div className="auth-card">
         <Link to="/" className="auth-logo">
@@ -73,9 +82,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          <p style={{ fontSize: 12, color: 'var(--fg-subtle)', textAlign: 'center' }}>
-            Admin: <strong>admin@sociosphere.ai</strong> / <strong>admin123</strong>
-          </p>
 
           <button type="submit" className="btn btn-primary btn-lg w-full" style={{ marginTop: 4 }}>
             Sign In

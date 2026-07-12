@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import toast from 'react-hot-toast';
 import {
   LayoutDashboard, Users, UserCheck, MessageSquareWarning, Wrench,
   CreditCard, Megaphone, CalendarDays, Settings, Building2,
@@ -20,6 +21,7 @@ export default function DashboardLayout() {
 
   const handleLogout = () => {
     logout();
+    toast.success('Successfully logged out!');
     navigate('/login');
   };
 

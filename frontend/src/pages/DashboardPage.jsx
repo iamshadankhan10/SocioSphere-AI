@@ -2,6 +2,9 @@ import { dashboardStats, recentActivities, monthlyCollectionData, complaintCateg
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Users, UserCheck, MessageSquareWarning, IndianRupee, Home, Wrench, CreditCard, CalendarDays, Bell } from 'lucide-react';
 
+import { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
+
 const iconMap = { Users, UserCheck, MessageSquareWarning, IndianRupee };
 // Use CSS-variable-aware colors so both light and dark mode look correct
 const activityIconMap = {
@@ -16,6 +19,17 @@ const activityIconMap = {
 const CHART_COLORS = ['#4f46e5', '#06b6d4', '#a855f7', '#f59e0b', '#ef4444'];
 
 export default function DashboardPage() {
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPageLoading(false), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <LoadingSpinner fullPage={true} message="Accessing secure database..." />;
+  }
+
   return (
     <div className="space-y">
       {/* Header */}

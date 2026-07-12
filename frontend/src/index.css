@@ -12,8 +12,10 @@
 
   /* Colors */
   --bg: #f5f7ff;
+  --bg-rgb: 245, 247, 255;
   --bg-card: #ffffff;
   --bg-sidebar: #f0f2ff;
+  --primary-rgb: 79, 70, 229;
   --bg-muted: #eef0fb;
 
   --fg: #1a1d35;
@@ -80,8 +82,10 @@
 /* ---- Dark Mode ---- */
 .dark {
   --bg: #0f1023;
+  --bg-rgb: 15, 16, 35;
   --bg-card: #171a30;
   --bg-sidebar: #131526;
+  --primary-rgb: 99, 102, 241;
   --bg-muted: #1e2140;
 
   --fg: #e8eaf6;
@@ -1261,4 +1265,63 @@ input, textarea, select {
   gap: 24px;
 }
 @media (max-width: 700px) { .resident-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================= */
+/* PREMIUM LOADING SPINNER & OVERLAY                            */
+/* ============================================================= */
+.spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bg-rgb, 15, 23, 42), 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeInSpinner 0.3s ease-out;
+}
+
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.premium-spinner {
+  border: 3px solid rgba(var(--primary-rgb, 99, 102, 241), 0.1);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: spinPremium 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 15px rgba(var(--primary-rgb, 99, 102, 241), 0.15);
+}
+
+.spinner-message {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+  letter-spacing: 0.5px;
+  animation: pulseMessage 1.5s ease-in-out infinite;
+}
+
+@keyframes spinPremium {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulseMessage {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes fadeInSpinner {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 

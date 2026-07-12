@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 
@@ -33,6 +34,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <Toaster position="top-center" toastOptions={{ style: { background: 'var(--bg-card)', color: 'var(--fg)', border: '1px solid var(--border)' } }} />
         <BrowserRouter>
           <Routes>
             {/* Public */}

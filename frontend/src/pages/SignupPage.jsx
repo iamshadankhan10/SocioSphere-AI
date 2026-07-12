@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
+import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -9,18 +10,25 @@ export default function SignupPage() {
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const set = (k, v) => { setError(''); setForm(f => ({ ...f, [k]: v })); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    const { error: signupError } = await signup(form);
-    if (signupError) { setError(signupError); return; }
-    navigate('/resident');
+    setLoading(true);
+    try {
+      const { error: signupError } = await signup(form);
+      if (signupError) { setError(signupError); return; }
+      navigate('/resident');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="auth-page">
+      {loading && <LoadingSpinner fullPage={true} message="Creating your account..." />}
       <div className="auth-glow" />
       <div className="auth-card">
         <Link to="/" className="auth-logo">

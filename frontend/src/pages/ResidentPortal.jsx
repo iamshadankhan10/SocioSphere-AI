@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
@@ -57,12 +57,22 @@ function ComplaintForm() {
   );
 }
 
+import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
+
+import toast from 'react-hot-toast';
+
 // ---- Main portal ----
 export default function ResidentPortal() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPageLoading(false), 900);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Show last 3 notices (pinned first)
   const notices = [...initialNotices]
@@ -74,8 +84,13 @@ export default function ResidentPortal() {
 
   const handleLogout = () => {
     logout();
+    toast.success('Successfully logged out!');
     navigate('/login');
   };
+
+  if (pageLoading) {
+    return <LoadingSpinner fullPage={true} message="Loading your dashboard..." />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
