@@ -51,9 +51,9 @@ export function AuthProvider({ children }) {
       
       const session = saveSession(data);
       setUser(session);
-      return { error: null, role: data.role };
+      return { error: null, role: data.role, user: session };
     } catch (error) {
-      return { error: 'Server error. Please try again later.', role: null };
+      return { error: 'Server error. Please try again later.', role: null, user: null };
     }
   };
 

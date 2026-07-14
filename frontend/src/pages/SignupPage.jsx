@@ -17,18 +17,20 @@ export default function SignupPage() {
     e.preventDefault();
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setLoading(true);
-    try {
-      const { error: signupError } = await signup(form);
-      if (signupError) { setError(signupError); return; }
-      navigate('/resident');
-    } finally {
+    
+    const { error: signupError } = await signup(form);
+    if (signupError) { 
+      setError(signupError); 
       setLoading(false);
+      return; 
     }
+    // Success: don't hide the spinner, let the page transition
+    navigate('/resident');
   };
 
   return (
     <div className="auth-page">
-      {loading && <LoadingSpinner fullPage={true} message="Creating your account..." />}
+      {loading && <LoadingSpinner fullPage={true} message="Provisioning your secure account..." />}
       <div className="auth-glow" />
       <div className="auth-card">
         <Link to="/" className="auth-logo">

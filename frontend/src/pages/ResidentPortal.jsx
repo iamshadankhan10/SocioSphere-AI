@@ -68,6 +68,7 @@ export default function ResidentPortal() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setPageLoading(false), 900);
@@ -83,9 +84,12 @@ export default function ResidentPortal() {
   const payments = initialPayments.slice(0, 4);
 
   const handleLogout = () => {
-    logout();
-    toast.success('Successfully logged out!');
-    navigate('/login');
+    setLogoutLoading(true);
+    setTimeout(() => {
+      logout();
+      toast.success('Successfully logged out!');
+      navigate('/login');
+    }, 1000);
   };
 
   if (pageLoading) {
@@ -94,6 +98,7 @@ export default function ResidentPortal() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      {logoutLoading && <LoadingSpinner fullPage={true} message="Logging out securely..." />}
 
       {/* Top Navbar */}
       <header style={{

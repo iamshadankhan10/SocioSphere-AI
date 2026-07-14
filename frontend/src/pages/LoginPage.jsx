@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -21,25 +22,25 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const { error: loginError, role } = await login(form.email, form.password);
-      if (loginError) {
-        setError(loginError);
-      } else {
-        if (role === 'admin') {
-          navigate('/dashboard');
-        } else {
-          navigate('/resident');
-        }
-      }
-    } finally {
+    const { error: loginError, role, user } = await login(form.email, form.password);
+    if (loginError) {
+      // Only hide spinner on error — on success keep it showing until page navigates away
+      setError(loginError);
       setLoading(false);
+    } else {
+      // Spinner stays visible while we navigate away
+      toast.success(`Welcome ${user?.name || 'User'}! 👋`);
+      if (role === 'admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/resident');
+      }
     }
   };
 
   return (
     <div className="auth-page">
-      {loading && <LoadingSpinner fullPage={true} message="Signing you in..." />}
+      {loading && <LoadingSpinner fullPage={true} message="Authenticating your credentials..." />}
       <div className="auth-glow" />
       <div className="auth-card">
         <Link to="/" className="auth-logo">

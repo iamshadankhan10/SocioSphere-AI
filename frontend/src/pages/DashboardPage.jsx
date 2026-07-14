@@ -19,17 +19,6 @@ const activityIconMap = {
 const CHART_COLORS = ['#4f46e5', '#06b6d4', '#a855f7', '#f59e0b', '#ef4444'];
 
 export default function DashboardPage() {
-  const [pageLoading, setPageLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setPageLoading(false), 900);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (pageLoading) {
-    return <LoadingSpinner fullPage={true} message="Accessing secure database..." />;
-  }
-
   return (
     <div className="space-y">
       {/* Header */}

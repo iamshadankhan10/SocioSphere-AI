@@ -9,26 +9,33 @@ import {
   Menu, X, Sun, Moon, Bell, Search, ChevronDown, LogOut, User
 } from 'lucide-react';
 import { sidebarNavItems } from '../../data/dummyData.js';
+import LoadingSpinner from '../shared/LoadingSpinner.jsx';
 
 const iconMap = { LayoutDashboard, Users, UserCheck, MessageSquareWarning, Wrench, CreditCard, Megaphone, CalendarDays, Settings };
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    toast.success('Successfully logged out!');
-    navigate('/login');
+    setLogoutLoading(true);
+    setTimeout(() => {
+      logout();
+      toast.success('Successfully logged out!');
+      navigate('/login');
+    }, 1000);
   };
 
   const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'AD';
 
   return (
     <div className="layout-dashboard">
+      {logoutLoading && <LoadingSpinner fullPage={true} message="Logging out securely..." />}
+      
       {/* Sidebar Overlay (mobile) */}
       {sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
