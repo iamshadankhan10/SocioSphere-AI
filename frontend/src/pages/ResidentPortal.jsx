@@ -7,8 +7,7 @@ import {
   Home, IndianRupee, Megaphone, MessageSquareWarning,
   CalendarDays, X, Send, User
 } from 'lucide-react';
-import { initialNotices } from '../data/noticeBoardData.js';
-import { initialPayments } from '../data/paymentsData.js';
+import { apiFetch } from '../utils/api.js';
 
 // ---- Status badge ----
 function PayBadge({ s }) {
@@ -34,8 +33,18 @@ function ComplaintForm() {
     </div>
   );
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/complaints', { method: 'POST', body: JSON.stringify(form) });
+      setSubmitted(true);
+    } catch (err) {
+      toast.error('Failed to submit complaint');
+    }
+  };
+
   return (
-    <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div className="form-group">
         <label className="form-label">Title</label>
         <input className="input" required placeholder="Brief description of issue" value={form.title} onChange={e => set('title', e.target.value)} />
@@ -70,18 +79,26 @@ export default function ResidentPortal() {
   const [pageLoading, setPageLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
+  const [notices, setNotices] = useState([]);
+  const [payments, setPayments] = useState([]);
+
   useEffect(() => {
-    const timer = setTimeout(() => setPageLoading(false), 900);
-    return () => clearTimeout(timer);
+    const fetchData = async () => {
+      try {
+        const [nData, pData] = await Promise.all([
+          apiFetch('/notices'),
+          apiFetch('/payments')
+        ]);
+        setNotices(nData.sort((a, b) => b.pinned - a.pinned).slice(0, 3));
+        setPayments(pData.slice(0, 4));
+      } catch (err) {
+        toast.error('Failed to load portal data');
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    fetchData();
   }, []);
-
-  // Show last 3 notices (pinned first)
-  const notices = [...initialNotices]
-    .sort((a, b) => b.pinned - a.pinned)
-    .slice(0, 3);
-
-  // Show payments for this user's flat — fallback to first 3 for demo
-  const payments = initialPayments.slice(0, 4);
 
   const handleLogout = () => {
     setLogoutLoading(true);
@@ -180,8 +197,8 @@ export default function ResidentPortal() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {notices.map(n => (
-                <div key={n.id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+              {notices.length === 0 ? <p style={{color: 'var(--fg-muted)', fontSize: 13}}>No active notices.</p> : notices.map(n => (
+                <div key={n._id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{n.title}</span>
                     {n.pinned && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 6px', borderRadius: 99, flexShrink: 0 }}>Pinned</span>}
@@ -189,7 +206,7 @@ export default function ResidentPortal() {
                   <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4, lineHeight: 1.5 }}>
                     {n.body.length > 100 ? n.body.slice(0, 100) + '…' : n.body}
                   </p>
-                  <span style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4, display: 'block' }}>{n.createdAt}</span>
+                  <span style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4, display: 'block' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
                 </div>
               ))}
             </div>
@@ -203,11 +220,11 @@ export default function ResidentPortal() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {payments.map(p => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+              {payments.length === 0 ? <p style={{color: 'var(--fg-muted)', fontSize: 13}}>No payments recorded.</p> : payments.map(p => (
+                <div key={p._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{p.type}</div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{p.month} · Due {p.dueDate}</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{p.month} · Due {new Date(p.dueDate).toLocaleDateString()}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--primary)' }}>₹{p.amount.toLocaleString()}</span>

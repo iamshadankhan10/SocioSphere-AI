@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { initialNotices, noticeCategoryOptions } from '../data/noticeBoardData.js';
+import { useState, useMemo, useEffect } from 'react';
+import { noticeCategoryOptions } from '../data/noticeBoardData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Pin, PinOff, Trash2, Search, X, Megaphone } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -25,7 +27,7 @@ function AddNoticeModal({ open, onClose, onAdd }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAdd({ ...form, id: `NOT-${Date.now()}`, pinned: false, createdAt: new Date().toISOString().split('T')[0] });
+    onAdd(form);
     setForm({ title: '', body: '', category: 'General' });
     onClose();
   };
@@ -77,7 +79,9 @@ function NoticeCard({ notice, onPin, onDelete }) {
               </span>
             )}
             <CategoryBadge c={notice.category} />
-            <span style={{ fontSize: 12, color: 'var(--fg-subtle)', marginLeft: 'auto' }}>{notice.createdAt}</span>
+            <span style={{ fontSize: 12, color: 'var(--fg-subtle)', marginLeft: 'auto' }}>
+              {new Date(notice.createdAt).toLocaleDateString()}
+            </span>
           </div>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>{notice.title}</h3>
           <p style={{ fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.6 }}>{notice.body}</p>
@@ -87,11 +91,11 @@ function NoticeCard({ notice, onPin, onDelete }) {
             className="btn btn-ghost btn-icon-sm"
             title={notice.pinned ? 'Unpin' : 'Pin'}
             style={{ color: notice.pinned ? 'var(--primary)' : undefined }}
-            onClick={() => onPin(notice.id)}
+            onClick={() => onPin(notice._id, notice.pinned)}
           >
             {notice.pinned ? <PinOff size={14} /> : <Pin size={14} />}
           </button>
-          <button className="btn btn-ghost btn-icon-sm" title="Delete" style={{ color: 'var(--danger)' }} onClick={() => onDelete(notice.id)}>
+          <button className="btn btn-ghost btn-icon-sm" title="Delete" style={{ color: 'var(--danger)' }} onClick={() => onDelete(notice._id)}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -102,16 +106,58 @@ function NoticeCard({ notice, onPin, onDelete }) {
 
 // ---- Main Page ----
 export default function NoticeBoardPage() {
-  const [notices, setNotices] = useState(initialNotices);
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState('All');
   const [addOpen, setAddOpen] = useState(false);
 
-  const handleAdd    = (n) => setNotices(p => [n, ...p]);
-  const handlePin    = (id) => setNotices(p => p.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n));
-  const handleDelete = (id) => setNotices(p => p.filter(n => n.id !== id));
+  useEffect(() => { fetchNotices(); }, []);
+
+  const fetchNotices = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/notices');
+      setNotices(data);
+    } catch (err) {
+      toast.error('Failed to load notices');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdd = async (n) => {
+    try {
+      await apiFetch('/notices', { method: 'POST', body: JSON.stringify(n) });
+      toast.success('Notice posted successfully');
+      fetchNotices();
+    } catch (err) {
+      toast.error(err.message || 'Failed to post notice');
+    }
+  };
+
+  const handlePin = async (id, currentStatus) => {
+    try {
+      await apiFetch(`/notices/${id}`, { method: 'PUT', body: JSON.stringify({ pinned: !currentStatus }) });
+      fetchNotices();
+    } catch (err) {
+      toast.error('Failed to update notice');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await apiFetch(`/notices/${id}`, { method: 'DELETE' });
+      toast.success('Notice deleted');
+      setConfirmId(null);
+      fetchNotices();
+    } catch (err) {
+      toast.error('Failed to delete notice');
+    }
+  };
+
   const [confirmId, setConfirmId] = useState(null);
-  const confirmNotice = notices.find(n => n.id === confirmId);
+  const confirmNotice = notices.find(n => n._id === confirmId);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -150,26 +196,29 @@ export default function NoticeBoardPage() {
       </div>
 
       {/* Notices */}
-      {filtered.length === 0 ? (
-        <div className="empty-state" style={{ minHeight: 300 }}>
-          <Megaphone size={36} />
-          <h3>No notices found</h3>
-          <p>Post a new notice or adjust your search.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {filtered.map(n => (
-            <NoticeCard key={n.id} notice={n} onPin={handlePin} onDelete={(id) => setConfirmId(id)} />
-          ))}
-        </div>
-      )}
+      <div className="grid">
+        {loading ? (
+          <p style={{ color: 'var(--fg-muted)' }}>Loading notices...</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ color: 'var(--fg-muted)', gridColumn: '1 / -1' }}>No notices found matching your criteria.</p>
+        ) : (
+          filtered.map(notice => (
+            <NoticeCard
+              key={notice._id}
+              notice={notice}
+              onPin={handlePin}
+              onDelete={setConfirmId}
+            />
+          ))
+        )}
+      </div>
 
       <AddNoticeModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} />
       <ConfirmModal
         open={!!confirmId}
         onClose={() => setConfirmId(null)}
         onConfirm={() => handleDelete(confirmId)}
-        title="Delete Notice"
+        title="Delete Notice?"
         description={confirmNotice?.title ? `Delete notice: "${confirmNotice.title}"? This action cannot be undone.` : undefined}
       />
     </div>

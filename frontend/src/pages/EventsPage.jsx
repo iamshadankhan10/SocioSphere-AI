@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { initialEvents, eventStatusOptions } from '../data/eventsData.js';
+import { useState, useMemo, useEffect } from 'react';
+import { eventStatusOptions } from '../data/eventsData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Search, X, CalendarDays, MapPin, Clock, Users, Trash2 } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -24,11 +26,7 @@ function AddEventModal({ open, onClose, onAdd }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAdd({
-      ...form,
-      id: `EVT-${Date.now()}`,
-      rsvps: 0
-    });
+    onAdd(form);
     setForm(empty);
     onClose();
   };
@@ -81,17 +79,58 @@ function AddEventModal({ open, onClose, onAdd }) {
 
 // ---- Main Page ----
 export default function EventsPage() {
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
   const [addOpen, setAddOpen] = useState(false);
 
-  const handleAdd = (evt) => setEvents(p => [evt, ...p]);
-  const handleDelete = (id) => setEvents(p => p.filter(e => e.id !== id));
+  useEffect(() => { fetchEvents(); }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/events');
+      setEvents(data);
+    } catch (err) {
+      toast.error('Failed to load events');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdd = async (evt) => {
+    try {
+      await apiFetch('/events', { method: 'POST', body: JSON.stringify(evt) });
+      toast.success('Event created');
+      fetchEvents();
+    } catch (err) {
+      toast.error('Failed to create event');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await apiFetch(`/events/${id}`, { method: 'DELETE' });
+      toast.success('Event deleted');
+      setConfirmId(null);
+      fetchEvents();
+    } catch (err) {
+      toast.error('Failed to delete event');
+    }
+  };
+
   const [confirmId, setConfirmId] = useState(null);
-  const confirmEvent = events.find(e => e.id === confirmId);
-  const handleRsvp = (id) => {
-    setEvents(p => p.map(e => e.id === id ? { ...e, rsvps: e.rsvps + 1 } : e));
+  const confirmEvent = events.find(e => e._id === confirmId);
+
+  const handleRsvp = async (id) => {
+    try {
+      await apiFetch(`/events/${id}/rsvp`, { method: 'PUT' });
+      toast.success('RSVP recorded');
+      fetchEvents();
+    } catch (err) {
+      toast.error('Failed to RSVP');
+    }
   };
 
   const filtered = useMemo(() => {
@@ -129,37 +168,35 @@ export default function EventsPage() {
       </div>
 
       {/* Events Grid */}
-      {filtered.length === 0 ? (
-        <div className="empty-state" style={{ minHeight: 300 }}>
-          <CalendarDays size={36} />
-          <h3>No events found</h3>
-          <p>Create a new event or adjust your filters.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
-          {filtered.map(evt => (
-            <div key={evt.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <StatusBadge s={evt.status} />
-                  <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{evt.id}</span>
+      <div className="grid">
+        {loading ? (
+          <p style={{ color: 'var(--fg-muted)' }}>Loading events...</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ color: 'var(--fg-muted)', gridColumn: '1 / -1' }}>No events found.</p>
+        ) : (
+          filtered.map(evt => (
+            <div key={evt._id} className="card event-card">
+              <div className="event-header">
+                <StatusBadge s={evt.status} />
+                <button className="btn btn-ghost btn-icon-sm" style={{ color: 'var(--danger)', margin: '-8px -8px 0 0' }} onClick={() => setConfirmId(evt._id)}>
+                  <Trash2 size={15} />
+                </button>
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>{evt.title}</h3>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16, lineHeight: 1.5 }}>{evt.description}</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CalendarDays size={14} color="var(--primary)" />
+                  <span>{new Date(evt.date).toLocaleDateString()} &middot; {evt.time}</span>
                 </div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>{evt.title}</h3>
-                <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16, lineHeight: 1.5 }}>{evt.description}</p>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CalendarDays size={14} color="var(--primary)" />
-                    <span>{evt.date} &middot; {evt.time}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <MapPin size={14} color="var(--primary)" />
-                    <span>{evt.venue}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Users size={14} color="var(--primary)" />
-                    <span>Organized by: <strong>{evt.organizer}</strong></span>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MapPin size={14} color="var(--primary)" />
+                  <span>{evt.venue}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={14} color="var(--primary)" />
+                  <span>Organized by: <strong>{evt.organizer}</strong></span>
                 </div>
               </div>
 
@@ -167,21 +204,16 @@ export default function EventsPage() {
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
                   {evt.rsvps} attending
                 </span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {evt.status === 'Upcoming' && (
-                    <button className="btn btn-outline btn-sm" onClick={() => handleRsvp(evt.id)}>
-                      RSVP (+1)
-                    </button>
-                  )}
-                  <button className="btn btn-ghost btn-icon-sm" style={{ color: 'var(--danger)' }} onClick={() => setConfirmId(evt.id)}>
-                    <Trash2 size={15} />
+                {evt.status === 'Upcoming' && (
+                  <button className="btn btn-outline btn-sm" onClick={() => handleRsvp(evt._id)}>
+                    RSVP (+1)
                   </button>
-                </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       <AddEventModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} />
       <ConfirmModal

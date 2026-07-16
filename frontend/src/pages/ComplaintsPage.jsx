@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { initialComplaints, staffOptions, categoryOptions } from '../data/complaintsData.js';
+import { useState, useMemo, useEffect } from 'react';
+import { staffOptions, categoryOptions } from '../data/complaintsData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Search, X, MessageSquareWarning, Eye, Trash2 } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -24,7 +26,7 @@ function DetailsSheet({ open, onClose, complaint, onStatusChange, onAssignChange
       <div className="sheet-overlay" onClick={onClose} />
       <div className="sheet">
         <div className="sheet-header">
-          <span className="sheet-title">{complaint.id}</span>
+          <span className="sheet-title">{complaint._id.substring(0,8)}</span>
           <button className="btn btn-ghost btn-icon-sm" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="sheet-body">
@@ -42,8 +44,8 @@ function DetailsSheet({ open, onClose, complaint, onStatusChange, onAssignChange
             <div className="grid-2">
               <div><div className="detail-label">Resident</div><div className="detail-value">{complaint.residentName}</div></div>
               <div><div className="detail-label">Flat</div><div className="detail-value">{complaint.flatNumber} · Tower {complaint.tower}</div></div>
-              <div><div className="detail-label">Created</div><div className="detail-value">{complaint.createdDate}</div></div>
-              <div><div className="detail-label">Resolved</div><div className="detail-value">{complaint.resolvedDate || '—'}</div></div>
+              <div><div className="detail-label">Created</div><div className="detail-value">{new Date(complaint.createdAt).toLocaleDateString()}</div></div>
+              <div><div className="detail-label">Resolved</div><div className="detail-value">{complaint.resolvedDate ? new Date(complaint.resolvedDate).toLocaleDateString() : '—'}</div></div>
             </div>
           </div>
 
@@ -51,7 +53,7 @@ function DetailsSheet({ open, onClose, complaint, onStatusChange, onAssignChange
 
           <div className="form-group">
             <label className="form-label">Update Status</label>
-            <select className="select" value={complaint.status} onChange={e => onStatusChange(complaint.id, e.target.value)}>
+            <select className="select" value={complaint.status} onChange={e => onStatusChange(complaint._id, e.target.value)}>
               <option value="Open">Open</option>
               <option value="In Progress">In Progress</option>
               <option value="Resolved">Resolved</option>
@@ -60,7 +62,7 @@ function DetailsSheet({ open, onClose, complaint, onStatusChange, onAssignChange
 
           <div className="form-group">
             <label className="form-label">Assign Staff</label>
-            <select className="select" value={complaint.assignedTo || 'Unassigned'} onChange={e => onAssignChange(complaint.id, e.target.value)}>
+            <select className="select" value={complaint.assignedTo || 'Unassigned'} onChange={e => onAssignChange(complaint._id, e.target.value)}>
               {staffOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -144,7 +146,8 @@ function ComplaintFormDialog({ open, onClose, onSave }) {
 
 
 export default function ComplaintsPage() {
-  const [complaints, setComplaints] = useState(initialComplaints);
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [priority, setPriority] = useState('all');
@@ -167,21 +170,67 @@ export default function ComplaintsPage() {
     resolved: complaints.filter(c => c.status === 'Resolved').length,
   };
 
-  const handleStatusChange = (id, s) => {
-    const isResolved = s === 'Resolved';
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: s, resolvedDate: isResolved ? new Date().toISOString().split('T')[0] : null } : c));
-    setSelected(prev => prev?.id === id ? { ...prev, status: s, resolvedDate: isResolved ? new Date().toISOString().split('T')[0] : null } : prev);
+  useEffect(() => { fetchComplaints(); }, []);
+
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/complaints');
+      setComplaints(data);
+    } catch (err) {
+      toast.error('Failed to load complaints');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAssignChange = (id, staff) => {
-    const assigned = staff === 'Unassigned' ? null : staff;
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, assignedTo: assigned } : c));
-    setSelected(prev => prev?.id === id ? { ...prev, assignedTo: assigned } : prev);
+  const handleStatusChange = async (id, s) => {
+    try {
+      const isResolved = s === 'Resolved';
+      const payload = { status: s };
+      if (isResolved) payload.resolvedDate = new Date().toISOString();
+      const updated = await apiFetch(`/complaints/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      setComplaints(prev => prev.map(c => c._id === id ? updated : c));
+      setSelected(prev => prev?._id === id ? updated : prev);
+      toast.success('Status updated');
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
   };
 
-  const handleSave = (form) => {
-    const newC = { id: `CMP-${Math.floor(1000 + Math.random() * 9000)}`, ...form, status: 'Open', createdDate: new Date().toISOString().split('T')[0], resolvedDate: null, assignedTo: null };
-    setComplaints(prev => [newC, ...prev]);
+  const handleAssignChange = async (id, staff) => {
+    try {
+      const assignedTo = staff === 'Unassigned' ? null : staff;
+      const updated = await apiFetch(`/complaints/${id}`, { method: 'PUT', body: JSON.stringify({ assignedTo }) });
+      setComplaints(prev => prev.map(c => c._id === id ? updated : c));
+      setSelected(prev => prev?._id === id ? updated : prev);
+      toast.success('Staff assigned');
+    } catch (err) {
+      toast.error('Failed to assign staff');
+    }
+  };
+
+  const handleSave = async (form) => {
+    try {
+      await apiFetch('/complaints', { method: 'POST', body: JSON.stringify(form) });
+      toast.success('Complaint submitted');
+      fetchComplaints();
+    } catch (err) {
+      toast.error('Failed to submit complaint');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selected) return;
+    try {
+      await apiFetch(`/complaints/${selected._id}`, { method: 'DELETE' });
+      toast.success('Complaint deleted');
+      setDeleteOpen(false);
+      setSelected(null);
+      fetchComplaints();
+    } catch (err) {
+      toast.error('Failed to delete complaint');
+    }
   };
 
   const statsCards = [
@@ -235,12 +284,14 @@ export default function ComplaintsPage() {
             <tr><th>ID / Title</th><th>Resident</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Date</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 24, color: 'var(--fg-muted)' }}>Loading complaints...</td></tr>
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={8}><div className="empty-state"><MessageSquareWarning size={36} /><h3>No complaints found</h3></div></td></tr>
             ) : filtered.map(c => (
-              <tr key={c.id}>
+              <tr key={c._id}>
                 <td>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c.id}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c._id.substring(0,8)}</div>
                   <div style={{ fontSize: 13, color: 'var(--fg)' }} className="truncate" title={c.title}>{c.title}</div>
                 </td>
                 <td>
@@ -251,7 +302,7 @@ export default function ComplaintsPage() {
                 <td><PriorityBadge p={c.priority} /></td>
                 <td><StatusBadge s={c.status} /></td>
                 <td style={{ fontSize: 12, color: 'var(--fg-muted)', maxWidth: 140 }} className="truncate">{c.assignedTo || '—'}</td>
-                <td style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{c.createdDate}</td>
+                <td style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{new Date(c.createdAt).toLocaleDateString()}</td>
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-ghost btn-icon-sm" title="View Details" onClick={() => { setSelected(c); setDetailsOpen(true); }}><Eye size={15} /></button>
@@ -269,7 +320,7 @@ export default function ComplaintsPage() {
       <ConfirmModal
         open={deleteOpen}
         onClose={() => { setDeleteOpen(false); setSelected(null); }}
-        onConfirm={() => setComplaints(prev => prev.filter(c => c.id !== selected?.id))}
+        onConfirm={handleDelete}
         title="Delete Complaint"
         description={selected?.title ? `Delete complaint: "${selected.title}"? This action cannot be undone.` : undefined}
       />

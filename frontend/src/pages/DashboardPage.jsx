@@ -1,8 +1,8 @@
-import { dashboardStats, recentActivities, monthlyCollectionData, complaintCategoryData } from '../data/dummyData.js';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Users, UserCheck, MessageSquareWarning, IndianRupee, Home, Wrench, CreditCard, CalendarDays, Bell } from 'lucide-react';
-
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/shared/LoadingSpinner.jsx';
 
 const iconMap = { Users, UserCheck, MessageSquareWarning, IndianRupee };
@@ -19,12 +19,34 @@ const activityIconMap = {
 const CHART_COLORS = ['#4f46e5', '#06b6d4', '#a855f7', '#f59e0b', '#ef4444'];
 
 export default function DashboardPage() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const res = await apiFetch('/dashboard');
+        setData(res);
+      } catch (err) {
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboard();
+  }, []);
+
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><LoadingSpinner /></div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center' }}>Error loading dashboard data</div>;
+
+  const { dashboardStats, recentActivities, monthlyCollectionData, complaintCategoryData } = data;
+
   return (
     <div className="space-y">
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Welcome back, Shadan! Here's what's happening in your society.</p>
+        <p className="page-subtitle">Welcome back! Here's what's happening in your society.</p>
       </div>
 
       {/* Stats Grid */}

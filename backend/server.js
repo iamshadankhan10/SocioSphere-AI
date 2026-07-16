@@ -8,6 +8,7 @@ import eventRoutes from './routes/events.js';
 import paymentRoutes from './routes/payments.js';
 import complaintRoutes from './routes/complaints.js';
 import visitorRoutes from './routes/visitors.js';
+import dashboardRoutes from './routes/dashboard.js';
 import User from './models/User.js';
 
 // Load env vars
@@ -29,6 +30,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/visitors', visitorRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Base route
 app.get('/', (req, res) => {

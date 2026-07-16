@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { initialResidents, towerOptions, getInitials } from '../data/residentsData.js';
+import { towerOptions, getInitials } from '../data/residentsData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Search, Eye, Edit, Trash2, Users, Home, UserCheck, TrendingUp, X, ChevronDown } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -138,7 +140,8 @@ function StatusBadge({ status }) {
 // ---- Main Page ----
 export default function ResidentsPage() {
   const navigate = useNavigate();
-  const [residents, setResidents] = useState(initialResidents);
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tower, setTower] = useState('all');
   const [type, setType] = useState('all');
@@ -146,6 +149,31 @@ export default function ResidentsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    fetchResidents();
+  }, []);
+
+  const fetchResidents = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/auth/users');
+      // The backend uses _id and residentType isn't strictly enforced in the schema yet, 
+      // but we will map backend fields to the frontend expectations.
+      const mapped = data.map(u => ({
+        ...u,
+        id: u._id,
+        fullName: u.name,
+        residentType: u.role === 'admin' ? 'Owner' : 'Tenant', // Rough fallback
+        status: 'Active'
+      }));
+      setResidents(mapped);
+    } catch (err) {
+      toast.error('Failed to load residents');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return residents.filter(r => {
@@ -158,20 +186,31 @@ export default function ResidentsPage() {
     });
   }, [residents, search, tower, type, status]);
 
-  const handleSave = (form) => {
-    if (selected) {
-      setResidents(prev => prev.map(r => r.id === selected.id ? { ...r, ...form } : r));
-    } else {
-      const newR = {
-        ...form,
-        id: `RES-${String(residents.length + 1).padStart(3, '0')}`,
-        moveInDate: new Date().toISOString().split('T')[0],
-        profilePhoto: '',
-        familyMembers: [], vehicles: [], payments: [], complaints: [], visitors: [],
-      };
-      setResidents(prev => [newR, ...prev]);
+  const handleSave = async (form) => {
+    try {
+      if (selected) {
+        // Edit is not implemented on backend yet, mock it locally for now
+        setResidents(prev => prev.map(r => r.id === selected.id ? { ...r, ...form } : r));
+        toast.success('Resident updated locally');
+      } else {
+        // Create resident (Signup)
+        const payload = {
+          name: form.fullName,
+          email: form.email,
+          phone: form.phone,
+          password: 'resident123', // Default password
+          flatNumber: form.flatNumber,
+          tower: form.tower
+        };
+        await apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(payload) });
+        toast.success('Resident added successfully');
+        fetchResidents();
+      }
+      setSelected(null);
+      setFormOpen(false);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save resident');
     }
-    setSelected(null);
   };
 
   return (

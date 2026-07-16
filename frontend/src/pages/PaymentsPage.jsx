@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { initialPayments, paymentTypeOptions } from '../data/paymentsData.js';
+import { useState, useMemo, useEffect } from 'react';
+import { paymentTypeOptions } from '../data/paymentsData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Search, X, IndianRupee, Eye, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -25,11 +27,8 @@ function AddPaymentModal({ open, onClose, onAdd }) {
     e.preventDefault();
     onAdd({
       ...form,
-      id: `PAY-${Date.now()}`,
       amount: Number(form.amount),
       status: 'Pending',
-      paidDate: null,
-      method: null,
     });
     setForm(empty);
     onClose();
@@ -139,12 +138,12 @@ function DetailSheet({ open, onClose, payment, onMarkPaid }) {
         <div className="sheet-footer">
           <button className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Close</button>
           {payment.status !== 'Paid' && (
-            <button
+              <button
               className="btn btn-primary"
               style={{ flex: 1 }}
               onClick={() => {
-                const sel = document.getElementById(`method-${payment.id}`);
-                onMarkPaid(payment.id, sel?.value || 'UPI');
+                const sel = document.getElementById(`method-${payment._id}`);
+                onMarkPaid(payment._id, sel?.value || 'UPI');
                 onClose();
               }}
             >
@@ -159,12 +158,27 @@ function DetailSheet({ open, onClose, payment, onMarkPaid }) {
 
 // ---- Main Page ----
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState(initialPayments);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [addOpen, setAddOpen] = useState(false);
   const [sheet, setSheet] = useState(null);
+
+  useEffect(() => { fetchPayments(); }, []);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/payments');
+      setPayments(data);
+    } catch (err) {
+      toast.error('Failed to load payments');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Stats
   const totalCollected = payments.filter(p => p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
@@ -179,19 +193,44 @@ export default function PaymentsPage() {
 
   const filtered = useMemo(() => payments.filter(p => {
     const q = search.toLowerCase();
-    const matchQ = !q || p.residentName.toLowerCase().includes(q) || p.flatNumber.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+    // Safely check strings
+    const matchQ = !q || p.residentName.toLowerCase().includes(q) || p.flatNumber.toLowerCase().includes(q);
     const matchS = filterStatus === 'All' || p.status === filterStatus;
     const matchT = filterType === 'All' || p.type === filterType;
     return matchQ && matchS && matchT;
   }), [payments, search, filterStatus, filterType]);
 
-  const handleAdd = (payment) => setPayments(p => [payment, ...p]);
-  const handleMarkPaid = (id, method) => {
-    setPayments(prev => prev.map(p =>
-      p.id === id ? { ...p, status: 'Paid', paidDate: new Date().toISOString().split('T')[0], method } : p
-    ));
+  const handleAdd = async (payment) => {
+    try {
+      await apiFetch('/payments', { method: 'POST', body: JSON.stringify(payment) });
+      toast.success('Payment record added');
+      fetchPayments();
+    } catch (err) {
+      toast.error('Failed to add payment record');
+    }
   };
-  const handleDelete = (id) => setPayments(prev => prev.filter(p => p.id !== id));
+  const handleMarkPaid = async (id, method) => {
+    try {
+      await apiFetch(`/payments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'Paid', method, paidDate: new Date().toISOString().split('T')[0] })
+      });
+      toast.success('Payment marked as paid');
+      fetchPayments();
+    } catch (err) {
+      toast.error('Failed to update payment');
+    }
+  };
+  const handleDelete = async (id) => {
+    try {
+      await apiFetch(`/payments/${id}`, { method: 'DELETE' });
+      toast.success('Payment record deleted');
+      setConfirmId(null);
+      fetchPayments();
+    } catch (err) {
+      toast.error('Failed to delete payment record');
+    }
+  };
   const [confirmId, setConfirmId] = useState(null);
 
   return (
@@ -242,59 +281,54 @@ export default function PaymentsPage() {
       </div>
 
       {/* Table */}
-      <div className="table-wrapper">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Resident</th>
-              <th>Flat</th>
-              <th>Type</th>
-              <th>Amount</th>
-              <th>Due Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
+      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+        {loading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading payments...</div>
+        ) : (
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={8}>
-                  <div className="empty-state" style={{ padding: '40px 0' }}>
-                    <IndianRupee size={32} />
-                    <h3>No payments found</h3>
-                    <p>Try adjusting your search or filters.</p>
-                  </div>
-                </td>
+                <th>Resident</th>
+                <th>Flat / Tower</th>
+                <th>Type</th>
+                <th>Month</th>
+                <th>Amount</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
-            ) : filtered.map(p => (
-              <tr key={p.id}>
-                <td style={{ fontWeight: 600, color: 'var(--fg-muted)', fontSize: 13 }}>{p.id}</td>
-                <td style={{ fontWeight: 600 }}>{p.residentName}</td>
-                <td style={{ color: 'var(--fg-muted)' }}>{p.flatNumber} · T{p.tower}</td>
-                <td><TypeBadge t={p.type} /></td>
-                <td style={{ fontWeight: 700, color: 'var(--primary)' }}>₹{p.amount.toLocaleString()}</td>
-                <td style={{ color: p.status === 'Overdue' ? 'var(--danger)' : 'var(--fg-muted)' }}>{p.dueDate}</td>
-                <td><StatusBadge s={p.status} /></td>
-                <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-ghost btn-icon-sm" title="View Details" onClick={() => setSheet(p)}>
-                      <Eye size={15} />
-                    </button>
-                    {p.status !== 'Paid' && (
-                      <button className="btn btn-ghost btn-icon-sm" title="Mark as Paid" style={{ color: 'var(--success)' }} onClick={() => handleMarkPaid(p.id, 'UPI')}>
-                        <CheckCircle size={15} />
-                      </button>
-                    )}
-                    <button className="btn btn-ghost btn-icon-sm" title="Delete" style={{ color: 'var(--danger)' }} onClick={() => setConfirmId(p.id)}>
-                      <X size={15} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: 24, color: 'var(--fg-muted)' }}>No records found.</td>
+                </tr>
+              ) : (
+                filtered.map(p => (
+                  <tr key={p._id}>
+                    <td style={{ fontWeight: 600, color: 'var(--fg)' }}>{p.residentName}</td>
+                    <td>{p.flatNumber} <span style={{ color: 'var(--fg-muted)' }}>(T-{p.tower})</span></td>
+                    <td><TypeBadge t={p.type} /></td>
+                    <td style={{ color: 'var(--fg-muted)' }}>{p.month || '—'}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--fg)' }}>₹{p.amount.toLocaleString()}</td>
+                    <td style={{ color: 'var(--fg-muted)' }}>{new Date(p.dueDate).toLocaleDateString()}</td>
+                    <td><StatusBadge s={p.status} /></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                        <button className="btn btn-ghost btn-icon-sm" title="View Details" onClick={() => setSheet(p)}>
+                          <Eye size={15} />
+                        </button>
+                        <button className="btn btn-ghost btn-icon-sm" style={{ color: 'var(--danger)' }} title="Delete" onClick={() => setConfirmId(p._id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Modals */}

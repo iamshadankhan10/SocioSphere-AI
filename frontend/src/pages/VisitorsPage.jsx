@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { initialVisitors, generatePassCode } from '../data/visitorsData.js';
+import { useState, useMemo, useEffect } from 'react';
+import { generatePassCode } from '../data/visitorsData.js';
+import { apiFetch } from '../utils/api.js';
+import toast from 'react-hot-toast';
 import { Plus, Search, X, UserCheck, LogOut, Eye, Trash2, Shield } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal.jsx';
 
@@ -42,7 +44,7 @@ function PassDialog({ open, onClose, visitor }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, textAlign: 'left' }}>
                 <div><div style={{ fontSize: 11, opacity: 0.7 }}>Visitor</div><div style={{ fontWeight: 700 }}>{visitor.fullName}</div></div>
                 <div><div style={{ fontSize: 11, opacity: 0.7 }}>Flat</div><div style={{ fontWeight: 700 }}>{visitor.flatNumber}</div></div>
-                <div><div style={{ fontSize: 11, opacity: 0.7 }}>Host</div><div style={{ fontWeight: 700 }}>{visitor.hostName}</div></div>
+                <div><div style={{ fontSize: 11, opacity: 0.7 }}>Host</div><div style={{ fontWeight: 700 }}>{visitor.host}</div></div>
                 <div><div style={{ fontSize: 11, opacity: 0.7 }}>Purpose</div><div style={{ fontWeight: 700 }}>{visitor.purpose}</div></div>
               </div>
             </div>
@@ -58,7 +60,7 @@ function PassDialog({ open, onClose, visitor }) {
 
 // ---- Form Dialog ----
 function VisitorFormDialog({ open, onClose, onSave }) {
-  const empty = { fullName: '', phone: '', flatNumber: '', tower: 'A', hostName: '', purpose: 'Guest', status: 'Inside', vehicleNumber: '' };
+  const empty = { fullName: '', phone: '', flatNumber: '', tower: 'A', host: '', purpose: 'Guest', status: 'Inside', vehicleNo: '' };
   const [form, setForm] = useState(empty);
   if (!open) return null;
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -93,7 +95,7 @@ function VisitorFormDialog({ open, onClose, onSave }) {
               </div>
               <div className="form-group">
                 <label className="form-label">Host Name *</label>
-                <input className="input" required value={form.hostName} onChange={e => set('hostName', e.target.value)} placeholder="Resident name" />
+                <input className="input" required value={form.host} onChange={e => set('host', e.target.value)} placeholder="Resident name" />
               </div>
               <div className="form-group">
                 <label className="form-label">Purpose</label>
@@ -128,7 +130,8 @@ function VisitorFormDialog({ open, onClose, onSave }) {
 
 
 export default function VisitorsPage() {
-  const [visitors, setVisitors] = useState(initialVisitors);
+  const [visitors, setVisitors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [purpose, setPurpose] = useState('all');
   const [status, setStatus] = useState('all');
@@ -137,9 +140,23 @@ export default function VisitorsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  useEffect(() => { fetchVisitors(); }, []);
+
+  const fetchVisitors = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/visitors');
+      setVisitors(data);
+    } catch (err) {
+      toast.error('Failed to load visitors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filtered = useMemo(() => visitors.filter(v => {
     const q = search.toLowerCase();
-    const matchSearch = !q || v.fullName.toLowerCase().includes(q) || v.hostName.toLowerCase().includes(q) || v.flatNumber.toLowerCase().includes(q);
+    const matchSearch = !q || v.fullName.toLowerCase().includes(q) || (v.host && v.host.toLowerCase().includes(q)) || v.flatNumber.toLowerCase().includes(q);
     const matchPurpose = purpose === 'all' || v.purpose === purpose;
     const matchStatus = status === 'all' || v.status === status;
     return matchSearch && matchPurpose && matchStatus;
@@ -152,16 +169,47 @@ export default function VisitorsPage() {
     checkedOut: visitors.filter(v => v.status === 'Checked Out').length,
   };
 
-  const handleCheckOut = (v) => setVisitors(prev => prev.map(vv => vv.id === v.id ? { ...vv, status: 'Checked Out', outTime: new Date().toISOString() } : vv));
+  const handleCheckOut = async (v) => {
+    try {
+      await apiFetch(`/visitors/${v._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'Checked Out', checkOutTime: new Date().toISOString() })
+      });
+      toast.success('Visitor checked out');
+      fetchVisitors();
+    } catch (err) {
+      toast.error('Failed to check out visitor');
+    }
+  };
 
-  const handleSave = (form) => {
-    const isInside = form.status === 'Inside';
-    const newV = {
-      id: `VIS-${String(visitors.length + 1).padStart(3, '0')}`,
-      ...form, inTime: isInside ? new Date().toISOString() : '', outTime: null, passCode: generatePassCode(),
-    };
-    setVisitors(prev => [newV, ...prev]);
-    if (form.status === 'Pre-Authorized') { setSelected(newV); setPassOpen(true); }
+  const handleSave = async (form) => {
+    try {
+      const isInside = form.status === 'Inside';
+      const payload = {
+        ...form,
+        checkInTime: isInside ? new Date().toISOString() : null,
+        passCode: generatePassCode(),
+      };
+      const newV = await apiFetch('/visitors', { method: 'POST', body: JSON.stringify(payload) });
+      toast.success('Visitor registered');
+      fetchVisitors();
+      if (form.status === 'Pre-Authorized') { setSelected(newV); setPassOpen(true); }
+    } catch (err) {
+      toast.error('Failed to register visitor');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selected) return;
+    try {
+      await apiFetch(`/visitors/${selected._id}`, { method: 'DELETE' });
+      toast.success('Visitor deleted');
+      setDeleteOpen(false);
+      setSelected(null);
+      fetchVisitors();
+    } catch (err) {
+      toast.error('Failed to delete visitor');
+    }
   };
 
   const statsCards = [
@@ -208,25 +256,32 @@ export default function VisitorsPage() {
       <div className="table-wrapper">
         <table className="table">
           <thead>
-            <tr><th>Visitor</th><th>Flat / Host</th><th>Purpose</th><th>Status</th><th>In Time</th><th>Pass Code</th><th>Actions</th></tr>
+            <tr><th>Visitor</th><th>Flat / Host</th><th>Purpose</th><th>Status</th><th>In Time</th><th>Out Time</th><th>Pass Code</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={7}><div className="empty-state"><UserCheck size={36} /><h3>No visitors found</h3></div></td></tr>
+            {loading ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 24, color: 'var(--fg-muted)' }}>Loading visitors...</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8}><div className="empty-state"><Shield size={36} /><h3>No visitors found</h3></div></td></tr>
             ) : filtered.map(v => (
-              <tr key={v.id}>
+              <tr key={v._id}>
                 <td>
                   <div style={{ fontWeight: 600 }}>{v.fullName}</div>
                   <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{v.phone}</div>
                 </td>
                 <td>
-                  <div style={{ fontWeight: 600 }}>{v.flatNumber}</div>
-                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{v.hostName}</div>
+                  <div style={{ fontWeight: 600 }}>{v.flatNumber} <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>(T-{v.tower})</span></div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Host: {v.host}</div>
                 </td>
                 <td><PurposeBadge purpose={v.purpose} /></td>
                 <td><StatusBadge status={v.status} /></td>
-                <td style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
-                  {v.inTime ? <><div>{formatDate(v.inTime)}</div><div>{formatTime(v.inTime)}</div></> : '—'}
+                <td>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{formatTime(v.checkInTime)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{formatDate(v.checkInTime)}</div>
+                </td>
+                <td>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{formatTime(v.checkOutTime)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{formatDate(v.checkOutTime)}</div>
                 </td>
                 <td>
                   <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 800, color: 'var(--primary)', letterSpacing: 3 }}>
@@ -253,9 +308,9 @@ export default function VisitorsPage() {
       <ConfirmModal
         open={deleteOpen}
         onClose={() => { setDeleteOpen(false); setSelected(null); }}
-        onConfirm={() => setVisitors(prev => prev.filter(v => v.id !== selected?.id))}
-        title="Remove Visitor"
-        description={selected?.fullName ? `Remove visitor record for ${selected.fullName}? This action cannot be undone.` : undefined}
+        onConfirm={handleDelete}
+        title="Delete Visitor Record"
+        description={selected?.fullName ? `Delete visitor record for "${selected.fullName}"? This action cannot be undone.` : undefined}
       />
     </div>
   );
